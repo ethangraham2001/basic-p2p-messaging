@@ -17,6 +17,8 @@ implemented)* client protocol.
 
 ## TODO:
 
+- Maybe add some server persistence so that not everything lives in RAM and is
+deleted after program exit.
 - Make the server multithreaded. Heart tokio is good for that
 - implement client protocol that only performs IP lookup for initial discovery
 of a peer
