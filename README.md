@@ -10,6 +10,8 @@ different types:
 - Query: look for the address of a peer given a 128-bit UUID *(hex representation)*
 - Register: registers senders IP in map and returns UUID
 
+Check out `query_request.json` and `registration_request.json` for format.
+
 This will only be used for the initial lookup of a peer's IP in the *(to be 
 implemented)* client protocol.
 
