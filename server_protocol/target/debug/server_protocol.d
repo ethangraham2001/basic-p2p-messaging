@@ -1,1 +1,0 @@
-/home/ethan/fundev/rust-practice/p2p-messaging/server_protocol/target/debug/server_protocol: /home/ethan/fundev/rust-practice/p2p-messaging/server_protocol/src/main.rs /home/ethan/fundev/rust-practice/p2p-messaging/server_protocol/src/server.rs
