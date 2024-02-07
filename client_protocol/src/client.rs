@@ -12,7 +12,7 @@ use json;
 use uuid::Uuid;
 
 /// Client in the p2p network
-struct Client {
+pub struct Client {
     listening_socket: UdpSocket,
     peer_map: HashMap<Uuid, SocketAddr>
 }
@@ -122,7 +122,7 @@ use std::fmt;
 
 /// errors relating to client activity.
 #[derive(Debug, Clone)]
-enum ClientError {
+pub enum ClientError {
     ServerUnavailableError(String),
     PeerNotFoundError(String),
     UdpFailureError(String),
