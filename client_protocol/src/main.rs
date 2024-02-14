@@ -10,6 +10,7 @@ pub mod message;
 
 use client::Client;
 use tokio;
+use tokio::net::UdpSocket;
 use std::env;
 use std::net::SocketAddr;
 use uuid::Uuid;
@@ -37,6 +38,8 @@ async fn main() {
         tokio::spawn(async move {
             client_1.display_loop().await;
         }),
+        tokio::spawn(async move {
+        }),
     ];
 
     for handle in handles {
@@ -45,4 +48,38 @@ async fn main() {
     // so that we wait for execution (loops forever)
     // handle.await.unwrap();
 }
+
+/* ===== SOME TEST CODE ======================================================*/
+
+// used for testing purposes *ONLY*. Don't use for anything else.
+/*
+impl Client {
+    /// adds a peer to the peer map
+    pub async fn __add_peer(&mut self, peer_uuid: Uuid, peer_addr: SocketAddr) {
+        let mut locked_queue = self.peer_map.lock().await;
+        locked_queue.insert(peer_uuid, peer_addr);
+    }
+
+    /// this is just for prototyping purposes. don't use ever again afterwards.
+    pub async fn __basic_send(&mut self, peer_uuid: &Uuid) {
+        let out_socket = UdpSocket::bind("0.0.0.0:0").await.unwrap();
+    
+        let msg = format!("Hello");
+        let mut msg_json = json::JsonValue::new_object();
+        msg_json["src_uuid"] = json::JsonValue::from(
+            "75442486-0878-440c-9db1-a7006c25a39f".to_string());
+        msg_json["dst_uuid"] = json::JsonValue::from(
+            "75442486-0878-440c-9db1-a7006c25a39f".to_string());
+        msg_json["creation_time"] = json::JsonValue::from(0.to_string());
+        msg_json["data"] = json::JsonValue::from(msg);
+        
+        let map_lock = self.peer_map.lock().await;
+        let addr = map_lock.get(peer_uuid).unwrap();
+        match out_socket.send_to(msg_json.dump().as_bytes(), addr).await {
+            Ok(_) => println!("Succeeded..."),
+            Err(_) => println!("Failed..."),
+        }
+    }
+}
+*/
 

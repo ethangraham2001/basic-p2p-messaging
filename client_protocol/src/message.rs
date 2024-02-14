@@ -33,11 +33,14 @@ impl Message {
 
     pub fn new_with_timestamp(dst_uuid: Uuid, src_uuid: Uuid, data: &str, 
                creation_time: DateTime<Local>) -> Result<Message, MessageError>{
+        
+        /*
         if dst_uuid == src_uuid {
             let err_msg = "dst_uuid and src_uuid should be different!"
                 .to_string();
             return Err(MessageError::MessageCreationError(err_msg));
         }
+        */
 
         let gen_msg = Message {
             dst_uuid,
@@ -87,9 +90,8 @@ impl Message {
         let data = &data.to_string();
 
         let time_now = Local::now();
-        // parse creation_time into a valid DateTime<Local>
 
-        /*
+        // parse creation_time into a valid DateTime<Local>
         let creation_time = match creation_time.to_string()
             .parse::<DateTime<Local>>() {
             Ok(valid_datetime) => valid_datetime,
@@ -98,7 +100,6 @@ impl Message {
                 return Err(MessageError::JsonParseError(err_msg));
             }
         };
-        */
 
         Message::new_with_timestamp(dst_uuid, src_uuid, data, time_now) 
     }

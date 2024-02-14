@@ -20,9 +20,10 @@ use crate::message::{Message, MessageError};
 /// Client in the p2p network
 #[derive(Clone)]
 pub struct Client {
-    pub listening_socket: Arc<Mutex<UdpSocket>>,
-    pub peer_map: Arc<Mutex<HashMap<Uuid, SocketAddr>>>,
-    pub recv_queue: Arc<Mutex<VecDeque<Message>>>,
+    listening_socket: Arc<Mutex<UdpSocket>>,
+    peer_map: Arc<Mutex<HashMap<Uuid, SocketAddr>>>,
+    recv_queue: Arc<Mutex<VecDeque<Message>>>,
+    uuid: Uuid,
 }
 
 /// protocol implementations
@@ -49,7 +50,8 @@ impl Client {
         Ok(Client{ 
             listening_socket: Arc::new(Mutex::new(listening_socket)), 
             peer_map: Arc::new(Mutex::new(peer_map)), 
-            recv_queue
+            recv_queue,
+            uuid: Uuid::new_v4() // randomly generated
         })
     }
 
@@ -60,16 +62,46 @@ impl Client {
     ///
     /// `peer_uuid`: the uuid of the recipient
     /// `msg`: the message data
-    async fn send_message(&mut self, peer_uuid: Uuid, msg: String) 
+    async fn send_message(&mut self, peer_uuid: &Uuid, msg_data: &str) 
         -> Result<(), ClientError> {
-        todo!();
+        
+        let mut peer_map = self.peer_map.lock().await;
+
+        // check if the (uuid <-> addr) is cached. Otherwise retrieve from CIS 
+        if !peer_map.contains_key(peer_uuid) {
+            match self.server_lookup_uuid(peer_uuid).await {
+                Ok(socket_addr) => { 
+                    peer_map.insert(*peer_uuid, socket_addr); 
+                },
+                Err(err) => 
+                    return Err(err),
+            }
+        }
+
+        // address will be cached now
+        let addr = peer_map.get(peer_uuid).unwrap();
+
+        // format msg as JSON
+        let mut msg_json = JsonValue::new_object();
+        msg_json["src_uuid"] = JsonValue::from(self.uuid.to_string());
+        msg_json["src_uuid"] = JsonValue::from(peer_uuid.to_string());
+        msg_json["data"] = JsonValue::from(msg_data.to_string());
+        msg_json["creation_time"] = JsonValue::from(0.to_string());
+
+        // bind socket and send message to recipient
+        let out_sock = UdpSocket::bind("0.0.0.0:0").await.unwrap();
+        match out_sock.send_to(msg_json.dump().as_bytes(), addr).await {
+            Ok(_) => Ok(()),
+            Err(err) => 
+                Err(ClientError::UdpFailureError(err.to_string())),
+        }
     }
 
     /// queries the central index server for a uuid, and adds the new mapping
     /// to the caller's `peer_map`
     ///
     /// `peer_uuid`: queried uuid
-    async fn server_lookup_uuid(&mut self, peer_uuid: &Uuid) 
+    async fn server_lookup_uuid(&self, peer_uuid: &Uuid) 
         -> Result<SocketAddr, ClientError> {
 
         // prepare json request
@@ -116,10 +148,7 @@ impl Client {
 
         // return found socket address. Shouldn't fail at this point in time
         match recv_ip.parse::<SocketAddr>() {
-            Ok(addr) => {
-                self.peer_map.lock().await.insert(*peer_uuid, addr);
-                Ok(addr)
-            },
+            Ok(addr) => Ok(addr),
             Err(_) => Err(ClientError::ServerUnavailableError("Fuck"
                                                               .to_string())),
         }
@@ -188,6 +217,7 @@ impl Client {
                     println!("=================================================");
                 }
             }
+            // TODO: implement .to_string() for `Message`
             let _ = time::sleep(Duration::from_millis(1000)).await;
         }
     }
