@@ -29,6 +29,16 @@ async fn main() {
     // clones the atomic reference counters, not the data. Underlying data is 
     // shared across threads.
     let mut client_0 = Client::build(port).await.unwrap();
+
+    // register with server, obtain UUID
+    let _ = match client_0.register_with_server().await {
+        Ok(valid_uuid) => println!("your uuid is: {}", valid_uuid),
+        Err(err) => {
+            let err_msg = format!("Error getting UUID from server. {}", err);
+            panic!("{}", err_msg);
+        }
+    };
+
     let mut client_1 = client_0.clone();
     let mut client_2 = client_0.clone();
 

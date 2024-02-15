@@ -16,11 +16,14 @@ use tokio::{
     time::{self, Duration},
     sync::Mutex,
 };
-use json::JsonValue;
+use json::{JsonValue, stringify, parse};
 use uuid::Uuid;
 use crate::message::{Message, MessageError};
 
+// the host port. Change to IP addr in future.
 static HOST_PORT: u16 = 50_000;
+// client UUID is NULL upon creation. Changed upon registration.
+static NULL_UUID_STR: &str = "00000000-0000-0000-0000-000000000000";
 
 /// Client in the p2p network
 #[derive(Clone)]
@@ -56,7 +59,7 @@ impl Client {
             listening_socket: Arc::new(Mutex::new(listening_socket)), 
             peer_map: Arc::new(Mutex::new(peer_map)), 
             recv_queue,
-            uuid: Uuid::new_v4() // randomly generated
+            uuid: NULL_UUID_STR.to_string().parse().unwrap() // randomly generated
         })
     }
 
@@ -89,17 +92,77 @@ impl Client {
         // format msg as JSON
         let mut msg_json = JsonValue::new_object();
         msg_json["src_uuid"] = JsonValue::from(self.uuid.to_string());
-        msg_json["src_uuid"] = JsonValue::from(peer_uuid.to_string());
+        msg_json["dst_uuid"] = JsonValue::from(peer_uuid.to_string());
         msg_json["data"] = JsonValue::from(msg_data.to_string());
         msg_json["creation_time"] = JsonValue::from(0.to_string());
 
         // bind socket and send message to recipient
         let out_sock = UdpSocket::bind("0.0.0.0:0").await.unwrap();
+
+        println!("sending message to: {}", addr);
+        println!("message data: {}", stringify(msg_json.clone()));
         match out_sock.send_to(msg_json.dump().as_bytes(), addr).await {
             Ok(_) => Ok(()),
             Err(err) => 
                 Err(ClientError::UdpFailureError(err.to_string())),
         }
+    }
+
+    /// Registers a client with the server. Done upon initialization.
+    /// Sets UUID in client object, hence the &mut
+    pub async fn register_with_server(&mut self) -> Result<Uuid, ClientError> {
+        // bind arbitrary socket
+        let out_socket = UdpSocket::bind("0.0.0.0:0").await.unwrap();
+        let mut request = JsonValue::new_object();
+
+
+        request["req_type"] = JsonValue::from("registration".to_string());
+
+        let socket_locked = self.listening_socket.lock().await;
+        request["addr"] = JsonValue::from(socket_locked.local_addr().unwrap()
+                                          .to_string());
+
+        let host_addr = SocketAddr::from(([127, 0, 0, 1], HOST_PORT));
+
+        match out_socket.send_to(request.dump().as_bytes(), host_addr).await {
+            Ok(_) => {},
+            Err(_) => 
+                return Err(
+                    ClientError::ServerUnavailableError("server unavailable"
+                                                        .to_string()))
+        }
+
+        // wait for server response
+        let mut buf = [0u8; 2014];
+        let (size, _) = match out_socket.recv_from(&mut buf).await {
+            Ok((len, addr)) => (len, addr),
+            Err(err) => {
+                let err_msg = format!(
+                    "Error waiting for server response. {}", err);
+                return Err(ClientError::ServerUnavailableError(err_msg));
+            }
+        };
+
+        let server_resp = 
+            String::from_utf8(buf[..size].to_vec()).unwrap();
+        let server_resp = json::parse(&server_resp).unwrap();
+
+        let client_uuid = &server_resp["uuid"].to_string();
+        let status = &server_resp["status"].to_string();
+
+        if status != "OK" {
+            // TODO change this error type
+            return Err(ClientError::ServerUnavailableError(
+                    "Error registering with server".to_string()));
+        }
+
+        // assumes that the server sends a valid uuid
+        let client_uuid = client_uuid.parse::<Uuid>().unwrap();
+        
+        // update UUID
+        self.uuid = client_uuid;
+
+        Ok(client_uuid)
     }
 
     /// queries the central index server for a uuid, and adds the new mapping
@@ -110,9 +173,9 @@ impl Client {
         -> Result<SocketAddr, ClientError> {
 
         // prepare json request
-        let mut query       = JsonValue::new_object();
-        query["req_type"]   = JsonValue::from("query");
-        query["uuid"]       = JsonValue::from(peer_uuid.to_string());
+        let mut query           = JsonValue::new_object();
+        query["req_type"]       = JsonValue::from("query");
+        query["queried_uuid"]   = JsonValue::from(peer_uuid.to_string());
 
         // send query to server
         let host_addr = SocketAddr::from(([127, 0, 0, 1], HOST_PORT));
@@ -134,8 +197,7 @@ impl Client {
 
         // buffer for server response
         let mut buf = [0; 1024];
-        let (size, _) = match self.listening_socket.lock().await
-            .recv_from(&mut buf).await {
+        let (size, _) = match out_socket.recv_from(&mut buf).await {
             Ok((len, addr)) => (len, addr),
             Err(err) => {
                 let err_msg = format!(
@@ -145,18 +207,20 @@ impl Client {
         };
 
         // unwrap assumes that error sends valid response.
-        let server_resp = json::JsonValue::from(
-            String::from_utf8(buf[..size].to_vec()).unwrap());
+        // TODO: Consider error handling here. For the time being, I assume
+        // that server functions correctly and following the protocol perfectly
+        let server_resp = 
+            String::from_utf8(buf[..size].to_vec()).unwrap();
+        let server_resp = json::parse(&server_resp).unwrap();
 
-        let recv_ip = &server_resp["ip"].to_string();
-
+        let recv_ip = &server_resp["address"].to_string();
         if recv_ip == "nil" {
             return Err(ClientError::PeerNotFoundError(
                     "No peer matching provided UUID".to_string()));
         }
 
         // return found socket address. Shouldn't fail at this point in time
-        match recv_ip.parse::<SocketAddr>() {
+        match recv_ip.to_string().parse::<SocketAddr>() {
             Ok(addr) => Ok(addr),
             Err(_) => Err(ClientError::ServerUnavailableError("Fuck"
                                                               .to_string())),

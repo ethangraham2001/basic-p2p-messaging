@@ -22,10 +22,11 @@ fn main() {
     };
 
     // add some peers to peer map
-    for i in vec!["a", "b", "c"] {
-        let addr = SocketAddr::from(([127, 0, 0, 1], 50001));
-        server.add_peer( PeerNode{ id: String::from(i), addr } );
-    }
+    let addr = SocketAddr::from(([127, 0, 0, 1], 50001));
+    server.add_peer( PeerNode{ 
+        id: String::from("75442486-0878-440c-9db1-b7006c25a39f"), 
+        addr 
+    });
 
     println!("listening at: {}", server.listening_socket.local_addr().unwrap());
 

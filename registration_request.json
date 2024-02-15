@@ -1,3 +1,4 @@
 {
-	"req_type": "registration"
+	"req_type": "registration",
+    	"addr": "127.0.0.1:50001"
 }

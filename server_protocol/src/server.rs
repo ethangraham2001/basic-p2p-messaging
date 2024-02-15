@@ -36,7 +36,7 @@ impl ServerNode {
             return Err(NodeError::NodeCreationError(err_msg));
         }
 
-        let listen_addr = SocketAddr::from(([0, 0, 0, 0], port));
+        let listen_addr = SocketAddr::from(([127, 0, 0, 1], port));
         let socket = match UdpSocket::bind(listen_addr) {
             Ok(udp_sock) => udp_sock,
             Err(_) => {
@@ -64,16 +64,22 @@ impl ServerNode {
         -> Result<(), ()> {
 
         let recv_string = String::from_utf8(recv_bytes.to_vec()).unwrap();
+
+        println!("===== \x1b[36mrequest from: {:?}\x1b[0m =====", src_addr);
+        println!("\tRequest Size: {}B", recv_string.len());
         let json_req = match json::parse(&recv_string) {
             Ok(valid_json) => valid_json,
-            Err(_) => return Err(())
+            Err(_) => {
+                println!("\t\x1b[31mInvalid JSON\x1b[0m");
+                return Err(())
+            }
         };
 
         let req_type = &json_req["req_type"];
         println!("\thandling {} request. src = {}", req_type.to_string(), 
                  src_addr);
         if req_type.to_string() == "registration" {
-            return self.handle_registration(src_addr);
+            return self.handle_registration(src_addr, &json_req);
         } 
         else if req_type.to_string() == "query" {
             return self.handle_lookup(json_req, src_addr);
@@ -117,13 +123,21 @@ impl ServerNode {
     ///
     /// `json_req`: a json request
     /// `src_addr`: the requesting addr
-    pub fn handle_registration(&mut self, src_addr: SocketAddr) 
-        -> Result<(), ()> {
+    pub fn handle_registration(&mut self, src_addr: SocketAddr, 
+                               req: &json::JsonValue) -> Result<(), ()> {
         // init a new peer and insert it
-        let new_uuid = Uuid::new_v4().to_string(); 
+        let new_uuid = Uuid::new_v4().to_string();
+
+        // assumes that the client sends a valid address.
+        let addr = req["addr"].to_string().parse::<SocketAddr>().unwrap();
+
         // I want to avoid the new_uuid.clone() here if possible
-        let new_peer = PeerNode { addr: src_addr, id: new_uuid.clone() }; 
+        let new_peer = PeerNode { addr, id: new_uuid.clone() }; 
+
+        println!("peer added. UUID = {}, ADDR = {}", new_peer.id, 
+                 new_peer.addr);
         self.add_peer(new_peer);
+
 
         let mut response = json::JsonValue::new_object();
         response["status"] = json::JsonValue::from("OK");
@@ -142,5 +156,6 @@ struct T(());
 /// TODO: make this implement Error class 
 pub enum NodeError {
     NodeCreationError(String),
+    JsonParseError(String),
 }
 
