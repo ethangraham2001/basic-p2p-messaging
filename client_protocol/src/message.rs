@@ -92,6 +92,7 @@ impl Message {
         let time_now = Local::now();
 
         // parse creation_time into a valid DateTime<Local>
+        /*
         let creation_time = match creation_time.to_string()
             .parse::<DateTime<Local>>() {
             Ok(valid_datetime) => valid_datetime,
@@ -100,6 +101,7 @@ impl Message {
                 return Err(MessageError::JsonParseError(err_msg));
             }
         };
+        */
 
         Message::new_with_timestamp(dst_uuid, src_uuid, data, time_now) 
     }

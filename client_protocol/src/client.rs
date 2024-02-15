@@ -98,9 +98,6 @@ impl Client {
 
         // bind socket and send message to recipient
         let out_sock = UdpSocket::bind("0.0.0.0:0").await.unwrap();
-
-        println!("sending message to: {}", addr);
-        println!("message data: {}", stringify(msg_json.clone()));
         match out_sock.send_to(msg_json.dump().as_bytes(), addr).await {
             Ok(_) => Ok(()),
             Err(err) => 
@@ -267,10 +264,12 @@ impl Client {
     /// sends outgoing traffic. `self` is mutable since a server lookup happens
     /// for peer discovery in the case that recipient is unknown.
     pub async fn outgoing_traff_loop(&mut self) {
-        let mut dst_uuid = String::new();
-        let mut msg = String::new();
 
         'main_loop: loop {
+
+            let mut dst_uuid = String::new();
+            let mut msg = String::new();
+
             println!("=======================================================");
             println!("Please enter a message >> ");
             let _ = stdin().read_line(&mut msg).unwrap();
@@ -279,10 +278,13 @@ impl Client {
             println!("Please enter a source uuid >> ");
             let _ = stdin().read_line(&mut dst_uuid).unwrap();
             println!("");
-            
+
             // attempt to parse uuid. `len - 1` to remove trailiing '\n' from
             // pressing ENTER in cli
-            let peer_uuid: Uuid = match dst_uuid[..dst_uuid.len()-1].parse() {
+            let dst_uuid = dst_uuid.to_string()
+                .replace(" ", "")
+                .replace("\n", "");
+            let peer_uuid: Uuid = match dst_uuid.parse() {
                 Ok(valid_uuid) => valid_uuid,
                 Err(_) => {
                     println!("\x1b[31mError parsing UUID. Try again.\x1b[0m");
@@ -291,7 +293,7 @@ impl Client {
             };
 
             match self.send_message(&peer_uuid, &msg).await {
-                Ok(_) => println!("Sent message successfully..."),
+                Ok(_) => println!("\x1b[1mSent message successfully...\x1b[0m"),
                 Err(err) => {
                     println!("Error sending message: {}", err);
                     continue 'main_loop;

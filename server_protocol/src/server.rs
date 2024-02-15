@@ -85,6 +85,9 @@ impl ServerNode {
             return self.handle_lookup(json_req, src_addr);
         }
 
+        // breathing room for the logs
+        println!();
+
         Ok(())
     }
 
@@ -134,7 +137,7 @@ impl ServerNode {
         // I want to avoid the new_uuid.clone() here if possible
         let new_peer = PeerNode { addr, id: new_uuid.clone() }; 
 
-        println!("peer added. UUID = {}, ADDR = {}", new_peer.id, 
+        println!("\t\x1b[1mpeer added\x1b[0m: UUID = {}, ADDR = {}", new_peer.id, 
                  new_peer.addr);
         self.add_peer(new_peer);
 
