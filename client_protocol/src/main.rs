@@ -10,8 +10,9 @@ pub mod message;
 
 use client::Client;
 use tokio;
-use tokio::net::UdpSocket;
 use std::env;
+
+use tokio::net::UdpSocket;
 use std::net::SocketAddr;
 use uuid::Uuid;
 use std::sync::Arc;
@@ -39,6 +40,7 @@ async fn main() {
             client_1.display_loop().await;
         }),
         tokio::spawn(async move {
+            client_2.outgoing_traff_loop().await;
         }),
     ];
 

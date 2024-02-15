@@ -5,9 +5,12 @@
  *
  * Description: Client struct and implementations of protocol
  */
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, mpsc};
-use std::net::SocketAddr;
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::{Arc, mpsc},
+    net::SocketAddr,
+    io::stdin,
+};
 use tokio::{
     net::UdpSocket,
     time::{self, Duration},
@@ -20,10 +23,10 @@ use crate::message::{Message, MessageError};
 /// Client in the p2p network
 #[derive(Clone)]
 pub struct Client {
-    listening_socket: Arc<Mutex<UdpSocket>>,
-    peer_map: Arc<Mutex<HashMap<Uuid, SocketAddr>>>,
-    recv_queue: Arc<Mutex<VecDeque<Message>>>,
-    uuid: Uuid,
+    pub listening_socket: Arc<Mutex<UdpSocket>>,
+    pub peer_map: Arc<Mutex<HashMap<Uuid, SocketAddr>>>,
+    pub recv_queue: Arc<Mutex<VecDeque<Message>>>,
+    pub uuid: Uuid,
 }
 
 /// protocol implementations
@@ -193,8 +196,36 @@ impl Client {
 
     /// sends outgoing traffic. `self` is mutable since a server lookup happens
     /// for peer discovery
-    async fn outgoing_traff_loop(&mut self) {
-        loop {
+    pub async fn outgoing_traff_loop(&mut self) {
+        let mut dst_uuid = String::new();
+        let mut msg = String::new();
+
+        'main_loop: loop {
+            println!("=======================================================");
+            println!("Please enter a message >> ");
+            let _ = stdin().read_line(&mut msg).unwrap();
+            println!("");
+
+            println!("Please enter a source uuid >> ");
+            let _ = stdin().read_line(&mut dst_uuid).unwrap();
+            println!("");
+            
+            // attempt to parse uuid
+            let peer_uuid: Uuid = match dst_uuid[..dst_uuid.len()].parse() {
+                Ok(valid_uuid) => valid_uuid,
+                Err(_) => {
+                    println!("\x1b[31mError parsing UUID. Try again.\x1b[0m");
+                    continue 'main_loop;
+                },
+            };
+
+            match self.send_message(&peer_uuid, &msg).await {
+                Ok(_) => println!("Sent message successfully..."),
+                Err(err) => {
+                    println!("Error sending message: {}", err);
+                    continue 'main_loop;
+                }
+            }
         }
     }
 
