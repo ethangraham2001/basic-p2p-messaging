@@ -20,6 +20,8 @@ use json::JsonValue;
 use uuid::Uuid;
 use crate::message::{Message, MessageError};
 
+static HOST_PORT: u16 = 50_000;
+
 /// Client in the p2p network
 #[derive(Clone)]
 pub struct Client {
@@ -113,8 +115,12 @@ impl Client {
         query["uuid"]       = JsonValue::from(peer_uuid.to_string());
 
         // send query to server
-        let host_addr = SocketAddr::from(([127, 0, 0, 1], 50_000));
-        match self.listening_socket.lock().await.send_to(query.dump()
+        let host_addr = SocketAddr::from(([127, 0, 0, 1], HOST_PORT));
+        
+        // socket for sending traffic to server
+        let out_socket = UdpSocket::bind("0.0.0.0:0").await.unwrap();
+
+        match out_socket.send_to(query.dump()
                 .as_bytes(), host_addr).await {
             Ok(n_bytes) => {
                 println!("send {} bytes to central index server", n_bytes);
@@ -195,7 +201,7 @@ impl Client {
     }
 
     /// sends outgoing traffic. `self` is mutable since a server lookup happens
-    /// for peer discovery
+    /// for peer discovery in the case that recipient is unknown.
     pub async fn outgoing_traff_loop(&mut self) {
         let mut dst_uuid = String::new();
         let mut msg = String::new();
@@ -210,8 +216,9 @@ impl Client {
             let _ = stdin().read_line(&mut dst_uuid).unwrap();
             println!("");
             
-            // attempt to parse uuid
-            let peer_uuid: Uuid = match dst_uuid[..dst_uuid.len()].parse() {
+            // attempt to parse uuid. `len - 1` to remove trailiing '\n' from
+            // pressing ENTER in cli
+            let peer_uuid: Uuid = match dst_uuid[..dst_uuid.len()-1].parse() {
                 Ok(valid_uuid) => valid_uuid,
                 Err(_) => {
                     println!("\x1b[31mError parsing UUID. Try again.\x1b[0m");
