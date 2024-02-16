@@ -59,7 +59,7 @@ impl Client {
             listening_socket: Arc::new(Mutex::new(listening_socket)), 
             peer_map: Arc::new(Mutex::new(peer_map)), 
             recv_queue,
-            uuid: NULL_UUID_STR.to_string().parse().unwrap() // randomly generated
+            uuid: NULL_UUID_STR.to_string().parse().unwrap()
         })
     }
 
@@ -96,12 +96,21 @@ impl Client {
         msg_json["data"] = JsonValue::from(msg_data.to_string());
         msg_json["creation_time"] = JsonValue::from(0.to_string());
 
-        // bind socket and send message to recipient
-        let out_sock = UdpSocket::bind("0.0.0.0:0").await.unwrap();
+        // bind socket and send message to recipient. 
+        let out_sock = match UdpSocket::bind("0.0.0.0:0").await {
+            Ok(socket) => socket,
+            Err(err) => {
+                let err_msg = format!("Could not bind UDP socket. {}", err);
+                return Err(ClientError::UdpFailureError(err_msg))
+            }
+        };
         match out_sock.send_to(msg_json.dump().as_bytes(), addr).await {
             Ok(_) => Ok(()),
-            Err(err) => 
-                Err(ClientError::UdpFailureError(err.to_string())),
+            Err(err) => { 
+                let err_msg = format!("Could not send message to recipient: {}",
+                                      err);
+                Err(ClientError::UdpFailureError(err_msg))
+            }
         }
     }
 
@@ -313,12 +322,14 @@ impl Client {
                 // display all messages if there are any available
                 while !locked_queue.is_empty() {
                     let msg = locked_queue.pop_back().unwrap();
-                    println!("=================================================");
+                    let disp_line = 
+                        "=================================================";
+                    println!("{}", disp_line);
                     println!("Message from \x1b[36m{}\x1b[0m", msg.src_uuid);
                     println!("\x1b[1mSent:\x1b[0m[{}]", msg.creation_time);
                     println!("\x1b[1mContent:\x1b[0m");
                     println!("{}", msg.data);
-                    println!("=================================================");
+                    println!("{}", disp_line);
                 }
             }
             // TODO: implement .to_string() for `Message`
