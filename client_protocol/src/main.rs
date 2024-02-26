@@ -12,11 +12,6 @@ use client::Client;
 use tokio;
 use std::env;
 
-use tokio::net::UdpSocket;
-use std::net::SocketAddr;
-use uuid::Uuid;
-use std::sync::Arc;
-
 /// calls the Client functions/methods
 #[tokio::main]
 async fn main() {

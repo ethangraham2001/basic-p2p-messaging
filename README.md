@@ -44,6 +44,19 @@ Messages are represented in `struct Message` which just wraps a few things
 such as destination UUID and source UUID, as well as defining a few things such
 as `from_json()` as all messages are JSON-formatted.
 
+# Example Usage
+
+To test the program, one server and two client protocols *(in that order)* 
+separate windows, providing port numbers for both clients that should be
+distinct and different from `50_000`. When the clients send their first message
+to eachother, traffic is observed in the central index server *(which we can
+verify through logs)*. After this initial discovery, no more traffic will be
+directed to the central index server relating to these two peers, so we can
+effectively exit the server protocol and observe that the peers are still able
+to communicate.
+
+![Simple demo](res/p2p-screenshot.png)
+
 ## Bugs
 
 - There seems to be some blocking happening, as sometimes the program will stall

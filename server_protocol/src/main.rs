@@ -5,9 +5,7 @@
  *
  * Description: implementation of central server protocol
  */
-
-use std::net::SocketAddr;
-use server::{ServerNode, PeerNode};
+use server::ServerNode;
 pub mod server;
 
 static DEFAULT_PORT: u16 = 50_000;
@@ -21,14 +19,9 @@ fn main() {
         Err(_) => panic!("oops"),
     };
 
-    // add some peers to peer map
-    let addr = SocketAddr::from(([127, 0, 0, 1], 50001));
-    server.add_peer( PeerNode{ 
-        id: String::from("75442486-0878-440c-9db1-b7006c25a39f"), 
-        addr 
-    });
-
+    println!("=====Initializing server=====");
     println!("listening at: {}", server.listening_socket.local_addr().unwrap());
+    println!();
 
     let mut recv_buf = [0; 1024];
     loop {
